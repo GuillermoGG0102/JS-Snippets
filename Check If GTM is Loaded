@@ -1,0 +1,5 @@
+if (window.google_tag_manager) {
+  console.log('GTM is loaded');
+} else {
+  console.log('GTM is not loaded');
+}
