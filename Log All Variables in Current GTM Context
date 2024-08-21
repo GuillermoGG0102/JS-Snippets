@@ -1,0 +1,2 @@
+const gtmContext = google_tag_manager['GTM-XXXXXX'].getContext();
+console.log('All GTM Variables:', gtmContext.data);
