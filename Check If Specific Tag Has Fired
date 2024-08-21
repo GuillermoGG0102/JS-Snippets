@@ -1,0 +1,3 @@
+const tagName = 'Your Tag Name';
+const tagFired = google_tag_manager['GTM-XXXXXX'].getFiredTags().includes(tagName);
+console.log(`Tag "${tagName}" has fired:`, tagFired);
