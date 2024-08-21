@@ -1,0 +1,3 @@
+const eventName = 'purchase';
+const eventExists = window.dataLayer.some(event => event.event === eventName);
+console.log(`Event "${eventName}" exists in Data Layer:`, eventExists);
