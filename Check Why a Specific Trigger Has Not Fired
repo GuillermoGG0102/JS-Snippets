@@ -1,0 +1,16 @@
+const triggerName = 'Your Trigger Name'; // Replace with your trigger name
+const allTriggers = google_tag_manager['GTM-XXXXXX'].getActiveTriggers();
+
+const triggerDetails = allTriggers.find(trigger => trigger.name === triggerName);
+
+if (triggerDetails) {
+  console.log(`Trigger "${triggerName}" details:`, triggerDetails);
+
+  if (!triggerDetails.fired) {
+    console.log(`Trigger "${triggerName}" did not fire. Conditions not met:`, triggerDetails.conditions);
+  } else {
+    console.log(`Trigger "${triggerName}" has already fired.`);
+  }
+} else {
+  console.log(`Trigger "${triggerName}" not found in GTM container.`);
+}
