@@ -1,0 +1,2 @@
+window.dataLayer.push({'event': 'debugEvent'});
+console.log('Debug event pushed to Data Layer');
