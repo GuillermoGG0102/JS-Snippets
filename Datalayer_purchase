@@ -1,0 +1,17 @@
+window.dataLayer = window.dataLayer || [];
+window.dataLayer.push({
+  event: 'purchase',
+  ecommerce: {
+    transaction_id: 'ABCD1234',
+    value: 10.00,
+    tax: 2.00,
+    shipping: 2.00,
+    currency: 'EUR',
+    items: [{
+      item_id: 'shirt_1234',
+      item_name: 'T-Shirt',
+      quantity: 1,
+      price: 10.00
+    }]
+  }
+});
