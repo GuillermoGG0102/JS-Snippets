@@ -1,0 +1,5 @@
+const originalPush = window.dataLayer.push;
+window.dataLayer.push = function() {
+  console.log('Data Layer Push:', arguments);
+  return originalPush.apply(this, arguments);
+};
