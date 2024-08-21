@@ -1,0 +1,2 @@
+const activeTriggers = google_tag_manager['GTM-XXXXXX'].getActiveTriggers();
+console.log('Active Triggers:', activeTriggers);
