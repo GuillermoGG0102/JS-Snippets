@@ -1,0 +1,19 @@
+const tagName = 'Your Tag Name'; // Replace with your tag name
+const allTags = google_tag_manager['GTM-XXXXXX'].getTagStatus();
+const tagDetails = allTags.find(tag => tag.name === tagName);
+
+if (tagDetails) {
+  console.log(`Tag "${tagName}" details:`, tagDetails);
+
+  if (!tagDetails.fired) {
+    console.log(`Tag "${tagName}" did not fire. Reason:`, tagDetails.reason);
+    
+    if (tagDetails.reason === 'trigger_not_fired') {
+      console.log('Associated triggers did not fire:', tagDetails.triggers);
+    }
+  } else {
+    console.log(`Tag "${tagName}" has already fired.`);
+  }
+} else {
+  console.log(`Tag "${tagName}" not found in GTM container.`);
+}
