@@ -1,0 +1,3 @@
+const triggerName = 'Your Trigger Name';
+const trigger = google_tag_manager['GTM-XXXXXX'].getTrigger(triggerName);
+console.log(`Trigger "${triggerName}" conditions:`, trigger.conditions);
