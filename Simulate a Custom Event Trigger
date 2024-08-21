@@ -1,0 +1,5 @@
+window.dataLayer.push({
+  'event': 'customEventName',
+  'customParam': 'value'
+});
+console.log('Custom event triggered with data:', {'customParam': 'value'});
