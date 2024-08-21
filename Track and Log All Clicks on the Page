@@ -1,0 +1,4 @@
+document.addEventListener('click', function(event) {
+  console.log('Clicked element:', event.target);
+  console.log('Data Layer:', window.dataLayer);
+});
