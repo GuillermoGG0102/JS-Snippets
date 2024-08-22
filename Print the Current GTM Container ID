@@ -1,0 +1,11 @@
+(function() {
+  if (window.google_tag_manager) {
+    for (const containerId in window.google_tag_manager) {
+      if (window.google_tag_manager.hasOwnProperty(containerId)) {
+        console.log('GTM Container Loaded:', containerId);
+      }
+    }
+  } else {
+    console.log('GTM is not loaded on this site.');
+  }
+})();
