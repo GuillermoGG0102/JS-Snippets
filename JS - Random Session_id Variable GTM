@@ -1,0 +1,22 @@
+
+// Función para generar un ID único para cada sesión
+function generateSessionId() {
+  // Comprueba si ya existe un ID de sesión en el sessionStorage
+  let sessionId = sessionStorage.getItem('session_id');
+
+  // Si no existe, genera uno nuevo
+  if (!sessionId) {
+    sessionId = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+    
+    // Guarda el ID de sesión en sessionStorage
+    sessionStorage.setItem('session_id', sessionId);
+  }
+
+  return sessionId;
+}
+
+// Llama a la función para obtener el ID de la sesión
+const sessionId = generateSessionId();
+
+// Devuelve el ID de sesión para ser usado como variable en GTM
+sessionId;
