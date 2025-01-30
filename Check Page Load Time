@@ -1,0 +1,3 @@
+//If you want to measure how long a page took to load, this is quick performance debugging option
+
+console.log(`Page Load Time: ${performance.timing.loadEventEnd - performance.timing.navigationStart}ms`);
