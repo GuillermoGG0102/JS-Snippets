@@ -1,0 +1,190 @@
+(function() {
+  /**
+   * Process a URL by checking if it belongs to an Analytics hit and if it has a 'gcd' parameter.
+   */
+  function processUrl(url) {
+    try {
+      const parsedUrl = new URL(url, location.href);
+      const gcd = parsedUrl.searchParams.get("gcd");
+      if (gcd) {
+        console.log("%c[GCD] Found value:", "color: green;", gcd);
+        processGCD(gcd, url); // Se pasa la URL del hit
+      }
+    } catch (e) {
+      // No es una URL válida – se ignora.
+    }
+  }
+
+  /**
+   * Process the GCD string.
+   *
+   * Assumes the GCD string format is:
+   *   [globalID][segment1][segment2][segment3][segment4][segment5]
+   *
+   * where the global ID is a series of initial digits (for example "13") and each segment
+   * is exactly 2 characters long (one letter for the signal and one character for the level).
+   *
+   * Depending on the ordering:
+   * - Standard format (e.g. "13l3l3l2l1l1") uses:
+   *      1. Consentimiento Analítico  
+   *      2. Consentimiento de Anuncios  
+   *      3. Consentimiento de Seguimiento  
+   *      4. Consentimiento de Redes Sociales  
+   *      5. Consentimiento de Conversiones mejoradas  
+   *
+   * - Extended format (e.g. "13r3rPr2r5l1") uses:
+   *      1. Consentimiento Analítico  
+   *      2. Consentimiento de Anuncios  
+   *      3. Consentimiento de Seguimiento  
+   *      4. Consentimiento de Conversiones extendidas  
+   *      5. Consentimiento de Redes Sociales  
+   *
+   * The additional parameter "hitUrl" is used to display the exact request URL from which the GCD was extracted.
+   */
+  function processGCD(gcd, hitUrl) {
+    // Extraer el ID global (dígitos iniciales)
+    const globalMatch = gcd.match(/^\d+/);
+    if (!globalMatch) {
+      console.warn("No global ID found in GCD: " + gcd);
+      return;
+    }
+    const globalID = globalMatch[0];
+    const remainder = gcd.slice(globalID.length);
+
+    // Cada segmento debe tener 2 caracteres. Si no, avisar.
+    if (remainder.length % 2 !== 0) {
+      console.warn("GCD remainder length is not even. Value: " + gcd);
+      return;
+    }
+    const segments = [];
+    for (let i = 0; i < remainder.length; i += 2) {
+      segments.push(remainder.substr(i, 2));
+    }
+    if (segments.length !== 5) {
+      console.warn(
+        "No se pudieron extraer correctamente los 5 segmentos del GCD (se encontraron " +
+          segments.length +
+          "). El valor es: " +
+          gcd
+      );
+      return;
+    }
+
+    // Determinar el orden:
+    // En el formato estándar el 4º segmento (índice 3) debe empezar con "l".
+    // Si no, se asume el orden extendido.
+    let ordering;
+    if (segments[3].charAt(0).toLowerCase() !== "l") {
+      ordering = [
+        "Consentimiento Analítico",
+        "Consentimiento de Anuncios",
+        "Consentimiento de Seguimiento",
+        "Consentimiento de Conversiones extendidas",
+        "Consentimiento de Redes Sociales"
+      ];
+    } else {
+      ordering = [
+        "Consentimiento Analítico",
+        "Consentimiento de Anuncios",
+        "Consentimiento de Seguimiento",
+        "Consentimiento de Redes Sociales",
+        "Consentimiento de Conversiones mejoradas"
+      ];
+    }
+
+    // Mapeo para la señal (primer carácter de cada segmento)
+    const letterMapping = {
+      l: "Signal not set with consent mode",
+      p: "Denied by default (no update)",
+      q: "Denied both by default and after update",
+      t: "Granted by default (no update)",
+      r: "Denied by default and granted after update",
+      m: "Denied after update (no default)",
+      n: "Granted after an update (no default)",
+      u: "Granted by default and denied after an update",
+      v: "Granted both by default and after update"
+    };
+
+    // Mapeo para el nivel (segundo carácter de cada segmento)
+    const levelMapping = {
+      "0": "No consent",
+      "1": "Basic consent",
+      "2": "Partial consent",
+      "3": "Full consent",
+      "5": "Extended consent"
+    };
+
+    // Armar los datos para la tabla.
+    const tableData = [];
+    // Se añade una fila con la URL del hit para poder verificarlo en la pestaña Network.
+    tableData.push({
+      "Category": "Network Hit URL",
+      "Raw Value": hitUrl,
+      "Signal": "-",
+      "Level": "-"
+    });
+    tableData.push({
+      "Category": "ID de Consentimiento Global",
+      "Raw Value": globalID,
+      "Signal": "-",
+      "Level": globalID
+    });
+
+    segments.forEach((seg, index) => {
+      const sigLetter = seg.charAt(0).toLowerCase();
+      const levelChar = seg.charAt(1);
+      const signalDesc = letterMapping[sigLetter] || ("Unknown signal (" + seg.charAt(0) + ")");
+      const levelDesc =
+        levelMapping[levelChar] ||
+        (levelChar.toLowerCase() === "p" ? "Partial consent" : "Unknown level (" + levelChar + ")");
+      tableData.push({
+        "Category": ordering[index],
+        "Raw Value": seg,
+        "Signal": signalDesc,
+        "Level": levelDesc
+      });
+    });
+
+    console.table(tableData);
+  }
+
+  /**
+   * Check a URL to see if it is an Analytics hit and, if so, process it.
+   */
+  function interceptRequest(url) {
+    if (url && url.indexOf("analytics.google.com/g/collect") !== -1) {
+      processUrl(url);
+    }
+  }
+
+  // --- Monkey patching de fetch ---
+  const originalFetch = window.fetch;
+  window.fetch = function (...args) {
+    let url = "";
+    if (typeof args[0] === "string") {
+      url = args[0];
+    } else if (args[0] && args[0].url) {
+      url = args[0].url;
+    }
+    interceptRequest(url);
+    return originalFetch.apply(this, args);
+  };
+
+  // --- Monkey patching de XMLHttpRequest ---
+  const originalXHROpen = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function (method, url, async, user, password) {
+    interceptRequest(url);
+    return originalXHROpen.apply(this, arguments);
+  };
+
+  // --- Procesar recursos ya cargados (via Performance API) ---
+  const resources = performance.getEntriesByType("resource");
+  resources.forEach((resource) => {
+    if (resource.name.indexOf("analytics.google.com/g/collect") !== -1) {
+      interceptRequest(resource.name);
+    }
+  });
+
+  console.log("%c[Monitor GCD] Script injected and running.", "color: blue;");
+})();
+
