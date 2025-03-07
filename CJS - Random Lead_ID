@@ -1,0 +1,10 @@
+function() {
+  var lead_id = sessionStorage.getItem('lead_id');
+  
+  if (!lead_id) {
+    lead_id = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+    sessionStorage.setItem('lead_id', lead_id);
+  }
+  
+  return lead_id;
+}
