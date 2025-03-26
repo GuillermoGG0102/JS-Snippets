@@ -1,0 +1,192 @@
+//Script de seguimiento de atribución de primer contacto (first-touch attribution) que almacena los parámetros UTM de la primera visita del usuario en una cookie y luego envía esos datos a la capa de datos (dataLayer) para su uso en Google Analytics.
+
+<script>
+(function() {
+  // Configuración centralizada
+  const config = {
+    cookieName: 'ds_utm',
+    cookieDuration: 180, // días
+    defaultValues: {
+      campaign: '(not set)',
+      medium: '(none)',
+      source: 'direct',
+      content: location.pathname
+    },
+    specialCases: {
+      gclid: { source: 'google', medium: 'cpc' },
+      fbclid: { source: 'facebook.com', medium: 'referral' },
+      organic: [/www\.google|www\.bing|duckduckgo|yandex/]
+    }
+  };
+
+  // Función principal
+  function main() {
+    try {
+      const queryParams = window.location.search;
+      const hasUTMs = hasUTMParameters(queryParams);
+      const attributionData = hasUTMs ? 
+        getUTMAttribution(queryParams) : 
+        getReferrerAttribution(queryParams);
+      
+      if (!readCookie(config.cookieName)) {
+        const cookieValue = buildCookieValue(attributionData);
+        createCookie(config.cookieName, btoa(cookieValue), config.cookieDuration);
+      } else {
+        const cookieData = parseCookieData(readCookie(config.cookieName));
+        Object.assign(attributionData, cookieData);
+      }
+      
+      pushToDataLayer(attributionData);
+    } catch (error) {
+      console.error('UTM Tracking Error:', error);
+      pushToDataLayer(config.defaultValues); // Fallback data
+    }
+  }
+
+  // Helper Functions
+  function hasUTMParameters(query) {
+    return query.includes('utm_source=') && query.includes('utm_medium=');
+  }
+
+  function getUTMAttribution(query) {
+    return {
+      source: getUTMValue(query, 'utm_source'),
+      medium: getUTMValue(query, 'utm_medium'),
+      campaign: getUTMValue(query, 'utm_campaign') || config.defaultValues.campaign,
+      content: getUTMValue(query, 'utm_content') || location.pathname,
+      date: getCurrentDate('date'),
+      month: getCurrentDate('month')
+    };
+  }
+
+  function getReferrerAttribution(query) {
+    let source, medium;
+    
+    // Casos especiales (gclid, fbclid)
+    for (const [param, values] of Object.entries(config.specialCases)) {
+      if (query.includes(param + '=')) {
+        source = values.source;
+        medium = values.medium;
+        break;
+      }
+    }
+    
+    // Tráfico orgánico
+    if (!source && document.referrer) {
+      const referrer = cleanReferrer(document.referrer);
+      const isOrganic = config.specialCases.organic.some(regex => referrer.match(regex));
+      
+      if (isOrganic) {
+        source = referrer;
+        medium = 'organic';
+      } else {
+        source = referrer;
+        medium = 'referral';
+      }
+    }
+    
+    // Default/Direct
+    if (!source) {
+      source = config.defaultValues.source;
+      medium = config.defaultValues.medium;
+    }
+    
+    return {
+      source: source,
+      medium: medium,
+      campaign: config.defaultValues.campaign,
+      content: config.defaultValues.content,
+      date: getCurrentDate('date'),
+      month: getCurrentDate('month')
+    };
+  }
+
+  function getUTMValue(query, param) {
+    const regex = new RegExp(param + '=([^&]+)');
+    const match = regex.exec(query);
+    return match ? decodeURIComponent(match[1]) : null;
+  }
+
+  function cleanReferrer(referrer) {
+    try {
+      const url = new URL(referrer);
+      return url.hostname.replace('www.', '');
+    } catch {
+      return referrer.replace(/(https?:\/\/)|(\/.*$)/g, '');
+    }
+  }
+
+  function getCurrentDate(type) {
+    const now = new Date();
+    switch(type) {
+      case 'date':
+        return now.toISOString().split('T')[0]; // YYYY-MM-DD
+      case 'month':
+        return String(now.getMonth() + 1).padStart(2, '0');
+      default:
+        return now.toISOString();
+    }
+  }
+
+  function buildCookieValue(data) {
+    return Object.entries(data)
+      .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+      .join('&');
+  }
+
+  function parseCookieData(encodedData) {
+    try {
+      const decoded = atob(encodedData);
+      return decoded.split('&').reduce((acc, pair) => {
+        const [key, value] = pair.split('=');
+        if (key && value) acc[key] = decodeURIComponent(value);
+        return acc;
+      }, {});
+    } catch {
+      return {};
+    }
+  }
+
+  function pushToDataLayer(data) {
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({
+      'event': 'firstAttribution',
+      'acquisitionSource': data.source,
+      'acquisitionMedium': data.medium,
+      'acquisitionCampaign': data.campaign || config.defaultValues.campaign,
+      'acquisitionContent': data.content || config.defaultValues.content,
+      'acquisitionDate': data.date || getCurrentDate('date'),
+      'acquisitionMonth': data.month || getCurrentDate('month')
+    });
+  }
+
+  // Cookie Functions (optimizadas)
+  function createCookie(name, value, days) {
+    const date = new Date();
+    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+    const expires = "; expires=" + date.toUTCString();
+    
+    let domain = location.hostname;
+    if (domain.match(/\./g).length > 1) {
+      domain = domain.substring(domain.indexOf('.'));
+    }
+    
+    document.cookie = `${name}=${value}${expires}; path=/; domain=${domain}; SameSite=Lax`;
+  }
+
+  function readCookie(name) {
+    const nameEQ = name + "=";
+    const cookies = document.cookie.split(';');
+    
+    for (let i = 0; i < cookies.length; i++) {
+      let cookie = cookies[i];
+      while (cookie.charAt(0) === ' ') cookie = cookie.substring(1);
+      if (cookie.indexOf(nameEQ) === 0) return cookie.substring(nameEQ.length);
+    }
+    return null;
+  }
+
+  // Iniciar
+  main();
+})();
+</script>
